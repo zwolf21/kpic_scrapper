@@ -6,7 +6,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from unicodedata import normalize
 
 import xlrd, tqdm
-from listorm import Listorm
+from listorm import Listorm, read_excel
 from bs4 import BeautifulSoup
 import requests
 
@@ -91,7 +91,8 @@ def parse_detail(*edis):
 			if '제품명' in col.text:
 				val = val.b.text
 			elif '급여정보' in col.text:
-				val = val.span.text
+				# val = val.span.text
+				val = edi
 			elif '성분명' in col.text:
 				comps = []
 				for a in val('a'):
@@ -164,12 +165,16 @@ def main():
 		xlfile, *_ = filter(lambda arg: arg.endswith('.xls') or arg.endswith('.xlsx'), sys.argv)
 	except:
 		print('need xlfile')
-		edis = get_edi_code_from_xl('약품정보2.xls')
+		edis = get_edi_code_from_xl('약품정보1.xls')
+		lst_drug = read_excel('약품정보1.xls')
 	else:
 		edis = get_edi_code_from_xl(xlfile)
+		lst_drug = read_excel(xlfile)
 	finally:
 		lst = get_info_thread(edis)
 		lst.column_orders = columns
+		lst = lst.join(lst_drug.select('원내/원외 처방구분', 'EDI코드', '약품코드'), left_on='급여정보', right_on='EDI코드', how='left')
+		lst = lst.update(**{'원내/원외 처방구분': lambda key: {'1': '원외', '2': '원내', '3': '원외/원내'}.get(key, key)}, to_rows=False)
 		lst.to_excel('KPIC.xlsx')
 
 if __name__ == '__main__':
