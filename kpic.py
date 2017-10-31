@@ -11,41 +11,14 @@ from bs4 import BeautifulSoup
 import requests
 import pandas as pd
 
-MAX_WORKER = 1
+MAX_WORKER = 15
 
 
 HEADERS = {
 	'User-Agent':'Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/56.0.2924.87 Safari/537.36',
 }
 
-def get_kpic_sort():
-	root = 'http://www.health.kr/ingd_info/kpic_atc/kpicatc_full2.asp'
-	driver = webdriver.Chrome()
-	driver.get(root)
-	content = driver.page_source
-	soup = BeautifulSoup(content, 'html.parser')
-	regex = re.compile(r'^drug_list.asp')
-	for level1 in soup('li', {"class": 'l1'}):
-		for l1_title in level1.strings:
-			break
-		print(l1_title)
-		for level2 in level1('li', {'class': 'l2'}):
-			for l2_title in level2.strings:
-				break
-			print('\t', l2_title)
-			for level3 in level2('li', {'class': 'l3'}):
-				for l3_title in level3.strings:
-					break
-				print('\t\t', l3_title)
-				if not level3('li', {'class': 'l4'}):				
-					for component in level3('a', recursive=1):
-						print('\t\t\t\t', component.text)
-				for level4 in level3('li', {'class': 'l4'}):
-					for l4_title in level4.strings:
-						break
-					print('\t\t\t', l4_title)
-					for component in level4('a'):
-						print('\t\t\t\t', component.text)
+
 
 def get_detail_url(edi):
 	url = 'http://www.health.kr/drug_info/basedrug/list.asp'
