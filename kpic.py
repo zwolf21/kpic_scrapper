@@ -10,7 +10,7 @@ from listorm import Listorm, read_excel
 from bs4 import BeautifulSoup
 import requests
 
-MAX_WORKER = 10
+MAX_WORKER = 20
 
 
 HEADERS = {
@@ -71,7 +71,7 @@ def parse_detail(*edis):
 		soup = BeautifulSoup(r.content, 'html.parser')
 		# for table in soup('table', class_='pd_box', bgcolor= 'e3e3e3'):
 
-		target_table = []
+		target_table = BeautifulSoup('', 'html.parser')
 		kpic_table = BeautifulSoup('', 'html.parser')
 		for table in soup('table', {'class': 'pd_box'}):
 			for tr in table('tr'):
@@ -98,7 +98,7 @@ def parse_detail(*edis):
 				for a in val('a'):
 					comp, *_ =  re.split('\s+', a.text)
 					comps.append(comp)
-				val = '+'.join(comps)
+				val = '+'.join(sorted(set(comps)))
 			else:
 				val = val.text
 
@@ -157,6 +157,9 @@ def get_info_thread(edis):
 			ret += future.result()
 		return Listorm(ret)
 
+# r=parse_detail('679400102')
+# print(r)
+
 
 def main():
 	columns = ["대분류", "중분류", "소분류", "계열분류", "성분명", "제품명", "제조/수입사", "제형", "급여정보", "전문/일반", "ATC코드", "기타", "식약처분류", "재심사여부"]
@@ -165,8 +168,8 @@ def main():
 		xlfile, *_ = filter(lambda arg: arg.endswith('.xls') or arg.endswith('.xlsx'), sys.argv)
 	except:
 		print('need xlfile')
-		edis = get_edi_code_from_xl('약품정보1.xls')
-		lst_drug = read_excel('약품정보1.xls')
+		edis = get_edi_code_from_xl('약품정보.xls')
+		lst_drug = read_excel('약품정보.xls')
 	else:
 		edis = get_edi_code_from_xl(xlfile)
 		lst_drug = read_excel(xlfile)
@@ -174,11 +177,25 @@ def main():
 		lst = get_info_thread(edis)
 		lst.column_orders = columns
 		lst = lst.join(lst_drug.select('원내/원외 처방구분', 'EDI코드', '약품코드'), left_on='급여정보', right_on='EDI코드', how='left')
-		lst = lst.update(**{'원내/원외 처방구분': lambda key: {'1': '원외', '2': '원내', '3': '원외/원내'}.get(key, key)}, to_rows=False)
+		inout = lambda key: {'1': '원외', '2': '원내', '3': '원외/원내'}.get(key, key)
+		
+		# lst = lst.update(**{"원내/원외 처방구분": inout}, to_rows=False)
+		lst = lst.update(**{'원내/원외 처방구분': lambda row: inout(row['원내/원외 처방구분'])})
 		lst.to_excel('KPIC.xlsx')
 
 if __name__ == '__main__':
 	main()
+
+
+# from listorm import read_excel
+
+# concat = lambda val: ', '.join(sorted(set(val)))
+# column_orders = ['대분류', '중분류', '소분류','계열분류','성분명','원내/원외 처방구분', '제품명']
+# column_orders = ['대분류', '원내/원외 처방구분', '중분류', '소분류','계열분류','성분명']
+# column_orders = ['원내/원외 처방구분','대분류', '중분류', '소분류','계열분류','성분명']
+# grp = lst.groupby('대분류', '중분류', '소분류','계열분류','성분명','원내/원외 처방구분',제품명=concat)
+# grp.column_orders = column_orders
+# grp.to_excel('ConCat.xlsx')
 
 
 
