@@ -9,8 +9,9 @@ import xlrd, tqdm
 from listorm import Listorm, read_excel
 from bs4 import BeautifulSoup
 import requests
+import pandas as pd
 
-MAX_WORKER = 20
+MAX_WORKER = 1
 
 
 HEADERS = {
@@ -62,7 +63,7 @@ def parse_detail(*edis):
 		edis = [edis]
 	ret = []
 	for edi in edis:
-		# print('parsing for edi: {}...'.format(edi))
+		print('parsing for edi: {}...'.format(edi))
 		detail_url = get_detail_url(edi)
 		if detail_url is None:
 			continue
@@ -162,6 +163,7 @@ def get_info_thread(edis):
 
 
 def main():
+
 	columns = ["대분류", "중분류", "소분류", "계열분류", "성분명", "제품명", "제조/수입사", "제형", "급여정보", "전문/일반", "ATC코드", "기타", "식약처분류", "재심사여부"]
 	
 	try:
@@ -182,6 +184,14 @@ def main():
 		# lst = lst.update(**{"원내/원외 처방구분": inout}, to_rows=False)
 		lst = lst.update(**{'원내/원외 처방구분': lambda row: inout(row['원내/원외 처방구분'])})
 		lst.to_excel('KPIC.xlsx')
+
+		df = pd.read_excel('KPIC.xlsx')
+		df.계열분류 =  df.계열분류.fillna('')
+		groupping = ['대분류', '중분류', '소분류','계열분류','성분명','원내/원외 처방구분']
+		aggfunc = lambda arr: ', '.join(sorted(set(arr)))
+		gf = df.groupby(groupping).agg({'제품명':aggfunc})
+		gf.to_excel('KPIC-Grouped.xlsx')
+
 
 if __name__ == '__main__':
 	main()
