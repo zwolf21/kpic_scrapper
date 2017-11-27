@@ -36,7 +36,7 @@ def parse_detail(*edis):
 		edis = [edis]
 	ret = []
 	for edi in edis:
-		print('parsing for edi: {}...'.format(edi))
+		# print('parsing for edi: {}...'.format(edi))
 		detail_url = get_detail_url(edi)
 		if detail_url is None:
 			continue
@@ -47,6 +47,7 @@ def parse_detail(*edis):
 
 		target_table = BeautifulSoup('', 'html.parser')
 		kpic_table = BeautifulSoup('', 'html.parser')
+		epicacy_table = BeautifulSoup('', 'html.parser')
 		for table in soup('table', {'class': 'pd_box'}):
 			for tr in table('tr'):
 				for td in tr('td'):
@@ -55,6 +56,17 @@ def parse_detail(*edis):
 						target_table = table
 					elif 'KPIC' in data:
 						kpic_table = table
+
+		for table in soup('table'):
+			if table('table'):
+				continue
+			for tr in table('tr'):
+				for td in tr('td'):
+					if '효능ㆍ효과' in td.text:
+						epicacy_table = table
+
+		# print(epicacy_table)
+		# print('181818')
 
 		info = []
 		record = {}
@@ -87,6 +99,7 @@ def parse_detail(*edis):
 				
 		levels = '대분류', '중분류', '소분류', '계열분류',
 		kpics = []
+		# kpic = {}
 		for tr in kpic_table('tr'):
 			for td in tr('td', recursive=0):
 				if td('td'):
@@ -97,7 +110,28 @@ def parse_detail(*edis):
 				kpic = dict(zip_longest(levels, sort, fillvalue=''))
 				kpic.update(record)
 				kpics.append(kpic)
+				# print('kpic:', kpic)
+		valueset = [tr.text.strip() for tr in epicacy_table('tr')][:2]
+		# print('col, val:', val)
+		# print('valueset:', valueset)
+		# print('len(valueset):', len(valueset))
+		col, val = valueset
+		# print('val:', val)
+		if len(valueset) == 2:
+			# print('valueset', valueset)
+			col, val = valueset	
+			if col:		
+				# print('col:', col)
+				# col = normalize('NFKC', col).strip()
+				val = normalize('NFKC', val).strip()
+				val = re.sub('\s+', ' ', val)
+				for kpic in kpics:
+					# print('col:', col)
+					# print(val)
+					kpic[col] = val
+
 		ret+=kpics
+	# pprint(ret)
 	return ret
 	
 
@@ -137,7 +171,7 @@ def get_info_thread(edis):
 
 def main():
 
-	columns = ["대분류", "중분류", "소분류", "계열분류", "성분명", "제품명", "제조/수입사", "제형", "급여정보", "전문/일반", "ATC코드", "기타", "식약처분류", "재심사여부"]
+	columns = ["대분류", "중분류", "소분류", "계열분류", "성분명", "제품명", "제조/수입사", "제형", "급여정보", "전문/일반", "ATC코드", "기타", "식약처분류", "재심사여부", "효능ㆍ효과"]
 	
 	try:
 		xlfile, *_ = filter(lambda arg: arg.endswith('.xls') or arg.endswith('.xlsx'), sys.argv)
@@ -151,6 +185,7 @@ def main():
 	finally:
 		lst = get_info_thread(edis)
 		lst.column_orders = columns
+		lst.to_excel('kpic-only.xlsx')
 		lst = lst.join(lst_drug.select('원내/원외 처방구분', 'EDI코드', '약품코드'), left_on='급여정보', right_on='EDI코드', how='left')
 		inout = lambda key: {'1': '원외', '2': '원내', '3': '원외/원내'}.get(key, key)
 		
